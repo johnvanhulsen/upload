@@ -98,8 +98,8 @@ export default class UploadButton extends Component {
      * @param message
      */
     failure(message) {
-        app.modal.close();
         alert(app.translator.trans('fof-upload.forum.states.error'));
+        app.modal.close();
     }
 
     /**
@@ -109,6 +109,8 @@ export default class UploadButton extends Component {
         response.forEach((bbcode) => {
             this.textAreaObj.insertAtCursor(bbcode + '\n');
         });
+
+        app.modal.close();
 
         // Scroll the preview into view
         // We don't call this.textAreaObj.props.preview() because that would close the composer on mobile

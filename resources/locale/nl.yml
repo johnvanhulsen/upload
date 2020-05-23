@@ -1,23 +1,4 @@
-flagrow-upload:
-    forum:
-        buttons:
-            attach: Bestand
-        states:
-            loading: Laad
-            success: Gelukt
-            error: Mislukt
-        failed: Oeps. Dat ging niet goed. Probeer het nogmaals of gebruik een ander bestandsformaat.
-        legal:
-            title: Copyright
-            desc: >
-                Wij zijn blij dat we de functie kunnen aanbieden om bestanden te uploaden naar het forum maar kunnen dit alleen doen als er geen copyright rust op de bestanden die je upload.
-                Als dit een foto is die je op social media of een andere site gevonden gevonden hebt, deel dan de link naar het bericht.
-            faq: Meer uitleg over het embedden van social media? Bekijk onze <a>veelgestelde vragen</a>.
-            policy: Informatie over ons uploadbeleid lees je in onze <a>huisregels</a>.
-            agree: Ja, ik mag dit bestand uploaden
-            disagree: Nee, annuleer upload
-        upload:
-            title: Uploaden...
+fof-upload:
     admin:
         templates:
             image: Standaard afbeelding downloadsjabloon
@@ -107,3 +88,27 @@ flagrow-upload:
             disable-download-logging: >
                 Schakel logboekregistratie elke download door gebruikers van uw forum uit.
                 Inschakelen stelt u in staat om het aantal downloads en andere statistieken te bekijken in de nabije toekomst.
+    forum:
+        buttons:
+            attach: Bestand
+        states:
+            loading: Laden
+            success: Geslaagd
+            error: Mislukt
+        failed: Oeps. Dat ging niet goed. Probeer het nogmaals of gebruik een ander bestandsformaat.
+        legal:
+            title: Copyright
+            desc: >
+                Wij zijn blij dat we de functie kunnen aanbieden om bestanden te uploaden naar het forum maar kunnen dit alleen doen als er geen copyright rust op de bestanden die je upload.
+                Als dit een foto is die je op social media of een andere site gevonden gevonden hebt, deel dan de link naar het bericht.
+            faq: Meer uitleg over het embedden van social media? Bekijk onze <a>veelgestelde vragen</a>.
+            policy: Informatie over ons uploadbeleid lees je in onze <a>huisregels</a>.
+            agree: Ja, ik mag dit bestand uploaden
+            disagree: Nee, annuleer upload
+        upload:
+            title: Uploaden...
+    api:
+        upload_errors:
+            forbidden_type: Dit type bestand accepteren we niet. Probeer een afbeelding.
+            unsupported_type: 'Dit type bestand ondersteunen we niet: {mime}.'
+            could_not_detect_mime: We kunnen je bestand niet valideren. Probeer het opnieuw.
