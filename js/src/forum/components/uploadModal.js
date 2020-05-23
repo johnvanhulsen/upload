@@ -12,7 +12,7 @@ class uploadModal extends Modal {
   }
 
   title() {
-    return app.translator.trans('flagrow-upload.forum.upload.title');
+    return app.translator.trans('fof-upload.forum.upload.title');
   }
 
   content() {
