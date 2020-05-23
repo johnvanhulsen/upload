@@ -43,13 +43,13 @@ class legalModal extends Modal {
   }
 
   accept() {
-    app.legalupload = true;
     uploadModal();
+    app.legalupload = true;
   }
 
   decline() {
-    app.modal.close();
     app.legalupload = false;
+    app.modal.close();
   }
 };
 
