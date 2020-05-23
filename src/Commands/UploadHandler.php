@@ -1,30 +1,21 @@
 <?php
 
-/*
- * This file is part of flagrow/upload.
- *
- * Copyright (c) Flagrow.
- *
- * http://flagrow.github.io
- *
- * For the full copyright and license information, please view the license.md
- * file that was distributed with this source code.
- */
-
-namespace Flagrow\Upload\Commands;
+namespace FoF\Upload\Commands;
 
 use Exception;
-use Flagrow\Upload\Contracts\UploadAdapter;
-use Flagrow\Upload\Events;
-use Flagrow\Upload\File;
-use Flagrow\Upload\Helpers\Settings;
-use Flagrow\Upload\Repositories\FileRepository;
+use FoF\Upload\Contracts\UploadAdapter;
+use FoF\Upload\Events;
+use FoF\Upload\File;
+use FoF\Upload\Helpers\Settings;
+use FoF\Upload\Repositories\FileRepository;
 use Flarum\Foundation\Application;
 use Flarum\Foundation\ValidationException;
 use Flarum\User\AssertPermissionTrait;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Support\Arr;
 use Psr\Http\Message\UploadedFileInterface;
+use SoftCreatR\MimeDetector\MimeDetector;
+use SoftCreatR\MimeDetector\MimeDetectorException;
 
 class UploadHandler
 {
@@ -49,35 +40,59 @@ class UploadHandler
      */
     protected $files;
 
+    /**
+     * @var MimeDetector
+     */
+    protected $mimeDetector;
+
     public function __construct(
         Application $app,
         Dispatcher $events,
         Settings $settings,
-        FileRepository $files
+        FileRepository $files,
+        MimeDetector $mimeDetector
     ) {
         $this->app = $app;
         $this->settings = $settings;
         $this->events = $events;
         $this->files = $files;
+        $this->mimeDetector = $mimeDetector;
     }
 
     /**
      * @param Upload $command
      *
      * @return \Illuminate\Support\Collection
+     * @throws \Flarum\User\Exception\PermissionDeniedException
      */
     public function handle(Upload $command)
     {
         $this->assertCan(
             $command->actor,
-            'flagrow.upload'
+            'fof-upload.upload'
         );
 
         $savedFiles = $command->files->map(function (UploadedFileInterface $file) use ($command) {
             try {
                 $upload = $this->files->moveUploadedFileToTemp($file);
 
-                $mimeConfiguration = $this->getMimeConfiguration($upload->getClientMimeType());
+                try {
+                    $this->mimeDetector->setFile($upload->getPathname());
+                } catch (MimeDetectorException $e) {
+                    throw new ValidationException(['upload' => app('translator')->trans('fof-upload.api.upload_errors.could_not_detect_mime')]);
+                }
+
+                $uploadFileData = $this->mimeDetector->getFileType();
+
+                if ($uploadFileData['mime'] === null) {
+                    try {
+                        $uploadFileData['mime'] = mime_content_type($upload->getPathname());
+                    } catch (Exception $e) {
+                        throw new ValidationException(['upload' => app('translator')->trans('fof-upload.api.upload_errors.could_not_detect_mime')]);
+                    }
+                }
+
+                $mimeConfiguration = $this->getMimeConfiguration($uploadFileData['mime']);
                 $adapter = $this->getAdapter(Arr::get($mimeConfiguration, 'adapter'));
                 $template = $this->getTemplate(Arr::get($mimeConfiguration, 'template', 'file'));
 
@@ -93,10 +108,14 @@ class UploadHandler
                     throw new ValidationException(['upload' => "De mime-type van het bestand dat je wil uploaden kunnen we niet accepteren: {$upload->getClientMimeType()}."]);
                 }
 
-                $file = $this->files->createFileFromUpload($upload, $command->actor);
+                if (!$adapter->forMime($uploadFileData['mime'])) {
+                    throw new ValidationException(['upload' => app('translator')->trans('fof-upload.api.upload_errors.unsupported_type', ['mime' => $uploadFileData['mime']])]);
+                }
+
+                $file = $this->files->createFileFromUpload($upload, $command->actor, $uploadFileData['mime']);
 
                 $this->events->fire(
-                    new Events\File\WillBeUploaded($command->actor, $file, $upload)
+                    new Events\File\WillBeUploaded($command->actor, $file, $upload, $uploadFileData['mime'])
                 );
 
                 $response = $adapter->upload(
@@ -118,7 +137,7 @@ class UploadHandler
                 $file->actor_id = $command->actor->id;
 
                 $this->events->fire(
-                    new Events\File\WillBeSaved($command->actor, $file, $upload)
+                    new Events\File\WillBeSaved($command->actor, $file, $upload, $uploadFileData['mime'])
                 );
 
                 if ($file->isDirty() || !$file->exists) {
@@ -126,7 +145,7 @@ class UploadHandler
                 }
 
                 $this->events->fire(
-                    new Events\File\WasSaved($command->actor, $file, $upload)
+                    new Events\File\WasSaved($command->actor, $file, $upload, $uploadFileData['mime'])
                 );
             } catch (Exception $e) {
                 if (isset($upload)) {
@@ -153,7 +172,7 @@ class UploadHandler
             return;
         }
 
-        return app("flagrow.upload-adapter.$adapter");
+        return app("fof.upload-adapter.$adapter");
     }
 
     /**

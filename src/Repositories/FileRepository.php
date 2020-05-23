@@ -1,21 +1,23 @@
 <?php
 
-namespace Flagrow\Upload\Repositories;
+namespace FoF\Upload\Repositories;
 
 use Carbon\Carbon;
-use Flagrow\Upload\Commands\Download as DownloadCommand;
-use Flagrow\Upload\Contracts\UploadAdapter;
-use Flagrow\Upload\Download;
-use Flagrow\Upload\Exceptions\InvalidUploadException;
-use Flagrow\Upload\File;
-use Flagrow\Upload\Validators\UploadValidator;
+use FoF\Upload\Commands\Download as DownloadCommand;
+use FoF\Upload\Contracts\UploadAdapter;
+use FoF\Upload\Download;
+use FoF\Upload\Exceptions\InvalidUploadException;
+use FoF\Upload\File;
+use FoF\Upload\Validators\UploadValidator;
 use Flarum\Foundation\Application;
 use Flarum\User\User;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 use League\Flysystem\Adapter\Local;
 use League\Flysystem\Filesystem;
 use Psr\Http\Message\UploadedFileInterface;
 use Ramsey\Uuid\Uuid;
+use SoftCreatR\MimeDetector\MimeDetector;
 use Symfony\Component\HttpFoundation\File\UploadedFile as Upload;
 
 class FileRepository
@@ -29,16 +31,23 @@ class FileRepository
      */
     private $validator;
 
-    public function __construct(Application $app, UploadValidator $validator)
+    /**
+     *
+     * @var MimeDetector
+     */
+    private $mimeDetector;
+
+    public function __construct(Application $app, UploadValidator $validator, MimeDetector $mimeDetector)
     {
         $this->path = $app->storagePath();
         $this->validator = $validator;
+        $this->mimeDetector = $mimeDetector;
     }
 
     /**
      * @param $uuid
      *
-     * @return File
+     * @return File|Model
      */
     public function findByUuid($uuid)
     {
@@ -50,11 +59,12 @@ class FileRepository
 
     /**
      * @param Upload $file
-     * @param User   $actor
+     * @param User $actor
      *
      * @return File
+     * @throws \Exception
      */
-    public function createFileFromUpload(Upload $file, User $actor)
+    public function createFileFromUpload(Upload $file, User $actor, String $mime)
     {
         // Generate a guaranteed unique Uuid.
         while ($uuid = Uuid::uuid4()->toString()) {
@@ -67,7 +77,7 @@ class FileRepository
             'uuid'      => $uuid,
             'base_name' => $this->getBasename($file, $uuid),
             'size'      => $file->getSize(),
-            'type'      => $file->getClientMimeType(),
+            'type'      => $mime,
             'actor_id'  => $actor->id,
         ]);
     }
@@ -76,13 +86,15 @@ class FileRepository
      * @param UploadedFileInterface $upload
      *
      * @return Upload
+     * @throws InvalidUploadException
+     * @throws \Illuminate\Validation\ValidationException
      */
     public function moveUploadedFileToTemp(UploadedFileInterface $upload)
     {
         $this->handleUploadError($upload->getError());
 
         // Move the file to a temporary location first.
-        $tempFile = tempnam($this->path.'/tmp', 'flagrow.upload.');
+        $tempFile = tempnam($this->path.'/tmp', 'fof.upload.');
         $upload->moveTo($tempFile);
 
         $file = new Upload(
@@ -99,6 +111,10 @@ class FileRepository
         return $file;
     }
 
+    /**
+     * @param $code
+     * @throws InvalidUploadException
+     */
     protected function handleUploadError($code)
     {
         switch ($code) {
@@ -134,6 +150,7 @@ class FileRepository
      * @param Upload $file
      *
      * @return bool
+     * @throws \League\Flysystem\FileNotFoundException
      */
     public function removeFromTemp(Upload $file)
     {
@@ -171,10 +188,11 @@ class FileRepository
     }
 
     /**
-     * @param Upload        $upload
+     * @param Upload $upload
      * @param UploadAdapter $adapter
      *
      * @return bool|false|resource|string
+     * @throws \League\Flysystem\FileNotFoundException
      */
     public function readUpload(Upload $upload, UploadAdapter $adapter)
     {
