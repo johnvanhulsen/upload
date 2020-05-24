@@ -93,24 +93,40 @@ export default class UploadButton extends Component {
     }
 
     /**
+     * Reset the button
+     */
+    resetButton() {
+        // reset the button for a new upload
+        setTimeout(() => {
+            this.$('form')[0].reset();
+            this.uploading(false);
+            m.redraw();
+
+        }, 1000);
+    }
+
+    /**
      * Handles errors.
      *
      * @param message
      */
     failure(message) {
-        alert(app.translator.trans('fof-upload.forum.states.error'));
         app.modal.close();
+
+        this.resetButton();
+
+        alert(app.translator.trans('fof-upload.forum.states.error'));
     }
 
     /**
      * Appends the file's link to the body of the composer.
      */
     success(response) {
+        app.modal.close();
+
         response.forEach((bbcode) => {
             this.textAreaObj.insertAtCursor(bbcode + '\n');
         });
-
-        app.modal.close();
 
         // Scroll the preview into view
         // We don't call this.textAreaObj.props.preview() because that would close the composer on mobile
@@ -123,11 +139,6 @@ export default class UploadButton extends Component {
             m.route(app.route.post(app.composer.component.props.post));
         }
 
-        // reset the button for a new upload
-        setTimeout(() => {
-            this.$('form')[0].reset();
-            this.uploading(false);
-            m.redraw();
-        }, 1000);
+        this.resetButton();
     }
 }

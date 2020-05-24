@@ -94,7 +94,7 @@ fof-upload:
         states:
             loading: Laden
             success: Geslaagd
-            error: Mislukt
+            error: Het uploaden is niet gelukt.
         failed: Oeps. Dat ging niet goed. Probeer het nogmaals of gebruik een ander bestandsformaat.
         legal:
             title: Copyright
